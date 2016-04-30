@@ -4,6 +4,7 @@ import static com.google.common.collect.Lists.newArrayList;
 import static java.util.Arrays.asList;
 
 import java.math.RoundingMode;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -62,11 +63,16 @@ public final class FactoryExample {
 
  static final int FONT_SIZE = 10;
 
- static final int VERTICAL_LINE_SPACING = 16;
+ static final int VERTICAL_SPACING = 16;
+ static final int HORIZONTAL_SPACING = 16;
+ static final int HEIGHT = 160;
+ static final int WIDTH = 160;
  static final int NUM_VEHICLES = 12;
  static final int FULL_HD_W = 1920;
  static final int SPEED_UP = 4;
  static final long RANDOM_SEED = 123L;
+ 
+ static final Point Ex_1 = new Point(0,0);
 
  // spacing between text pixels
  static final double SPACING = 30d;//Granularity of movement
@@ -116,26 +122,28 @@ public final class FactoryExample {
    } else {
      rect = display.getPrimaryMonitor().getClientArea();
    }
-
-   List<String> words = asList(" BioCo3 \nDistriNet");
-   // spacing between vertical lines in line units
+   /*
+   private static boxes(){
+	   for (int i = 0; i < NUM_BOXES; i++) {
+		   final ImmutableList<Point> pointy2 = new ImmutableList.Builder<Point>()
+			       .add(new Point(0.0,0.0))
+			       .build();
+	   }
+			 
+		return 
+	}
+   */
    
-   //System.out.print(words);
+   final ImmutableList<Point> pointy2 = new ImmutableList.Builder<Point>()
+	       .add(new Point(0.0,0.0))
+	       .build();
 
-   // screen
-   if (rect.width == FULL_HD_W) {
-     // AgentWise\nKU Leuven", "iMinds\nDistriNet"
-     // " Agent \n Wise ", " Distri \n Net "
-     words = asList(" iMinds \nDistriNet");
-   }
-
-   final ImmutableList<ImmutableList<Point>> points = createPoints(words);
-   final Graph<?> g = createGraph(points);
+   final ImmutableList<ImmutableList<Point>> pointy = new ImmutableList.Builder<ImmutableList<Point>>()
+       .add(pointy2)
+       .build();
    
-   //System.out.print(points);
+//   final ImmutableList<ImmutableList<Point>> points = createPoints(l);
 
-   final List<Point> borderNodes = newArrayList(getBorderNodes(g));
-   Collections.shuffle(borderNodes, new Random(RANDOM_SEED));
 
    View.Builder view = View.builder()
      .with(GraphRoadModelRenderer.builder()
@@ -168,26 +176,19 @@ public final class FactoryExample {
    final Simulator simulator = Simulator
      .builder()
      .setRandomGenerator(rng)
-     .addModel(
-       BlockingGraphRoadModel.blockingBuilder(g)
-         .withDistanceUnit(SI.METER)
-         .withSpeedUnit(NonSI.KILOMETERS_PER_HOUR))
+     .addModel(RoadModelBuilders.staticGraph(
+    		 createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING)))
      .addModel(
        DefaultPDPModel.builder())
-     .addModel(
-       AgvModel.builder().withPoints(
-         ImmutableList.<ImmutableList<Point>>builder()
-           .addAll(points)
-           .add(ImmutableList.copyOf(borderNodes))
-           .build(),
-         getBorderNodes(g)))
+     .addModel(AgvModel.builder().withPoints(pointy, pointy2))    
      .addModel(view)
      .build();
+   
+   final RoadModel roadModel = simulator.getModelProvider().getModel(
+		      RoadModel.class);
 
    for (int i = 0; i < NUM_VEHICLES; i++) {
-     final List<Point> l = points.get(rng.nextInt(points.size()));
-     final Point p = l.get(rng.nextInt(l.size()));
-     simulator.register(new AGV(p));
+     simulator.register(new AGV(roadModel.getRandomPosition(rng)));
    }
 
    simulator.addTickListener(new TickListener() {
@@ -204,79 +205,19 @@ public final class FactoryExample {
    return simulator;
  }
 
- static ImmutableList<ImmutableList<Point>> createPoints(Iterable<String> words) {
-   final ImmutableList.Builder<ImmutableList<Point>> pointBuilder =
-     ImmutableList.builder();
-   for (final String word : words) {
-     pointBuilder.add(SwarmDemo.measureString(word, FONT_SIZE, SPACING, 2));
-   }
-   return pointBuilder.build();
- }
 
- static Graph<?> createGraph(ImmutableList<ImmutableList<Point>> points) {
-   int max = 0;
-   double xMax = 0;
-   double yMax = 0;
-   for (final List<Point> ps : points) {//ps takes the value of each item in points on every for iteration.
-     max = Math.max(max, ps.size());
-     for (final Point p : ps) {
-       xMax = Math.max(p.x, xMax);
-       yMax = Math.max(p.y, yMax);
-     }
-   }
+/*
+ private static ImmutableList<ImmutableList<Point>> createPoints(
+		 Iterable<Point> l) {
+	final ImmutableList.Builder<ImmutableList<Point>> pointBuilder =
+			ImmutableList.builder();
+		    //for (final ImmutableList<Point> p : l) {
+		      pointBuilder.add(l);
+		    //}
+	return pointBuilder.build();
+}*/
 
-   int width = DoubleMath.roundToInt(xMax / SPACING, RoundingMode.CEILING);
-   width += VERTICAL_LINE_SPACING - width % VERTICAL_LINE_SPACING;
-   width += width / VERTICAL_LINE_SPACING % 2 == 0 ? VERTICAL_LINE_SPACING
-     : 0;
-
-   int height =
-     DoubleMath.roundToInt(yMax / SPACING, RoundingMode.CEILING) + 2;
-   height += height % 2;
-   return createGrid(width, height, 2, 16, SPACING);
- }
-
- static void addPath(Graph<?> graph, Point... points) {
-   final List<Point> newPoints = newArrayList();
-   for (int i = 0; i < points.length - 1; i++) {
-     final double dist = Point.distance(points[i], points[i + 1]);
-     final Point unit = Point.divide(Point.diff(points[i + 1], points[i]),
-       dist);
-     final int numPoints = DoubleMath.roundToInt(dist / POINT_DISTANCE,
-       RoundingMode.FLOOR);
-     for (int j = 0; j < numPoints; j++) {
-       final double factor = j * POINT_DISTANCE;
-       newPoints.add(new Point(points[i].x + factor * unit.x, points[i].y
-         + factor * unit.y));
-     }
-   }
-   newPoints.add(points[points.length - 1]);
-   Graphs.addPath(graph, newPoints.toArray(new Point[newPoints.size()]));
- }
-
- static ImmutableList<Point> getBorderNodes(Graph<?> g) {
-   final Set<Point> points = g.getNodes();
-   double xMin = Double.MAX_VALUE;
-   double yMin = Double.MAX_VALUE;
-   double xMax = Double.MIN_VALUE;
-   double yMax = Double.MIN_VALUE;
-
-   for (final Point p : points) {
-     xMin = Math.min(xMin, p.x);
-     yMin = Math.min(yMin, p.y);
-     xMax = Math.max(xMax, p.x);
-     yMax = Math.max(yMax, p.y);
-   }
-   final ImmutableList.Builder<Point> builder = ImmutableList.builder();
-   for (final Point p : points) {
-     if (p.x == xMin || p.x == xMax || p.y == yMin || p.y == yMax) {
-       builder.add(p);
-     }
-   }
-   return builder.build();
- }
-
- static Graph<LengthData> createGrid(int width, int height, int hLines,
+static Graph<LengthData> createGrid(int width, int height, int hLines,
      int vLines, double distance) {
    final Graph<LengthData> graph = new MultimapGraph<LengthData>();
 
