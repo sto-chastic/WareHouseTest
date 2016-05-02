@@ -268,6 +268,7 @@ public final class ExperimentExample {
 
   enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     INSTANCE {
+    	@OVERRIDE
       public void handleTimedEvent(AddVehicleEvent event, SimulatorAPI sim) {
         sim.register(new AgvAgent(event.getVehicleDTO()));
     	  // add you own vehicle to the simulator here
