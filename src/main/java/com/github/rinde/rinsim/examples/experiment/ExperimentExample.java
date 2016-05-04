@@ -7,6 +7,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.commons.math3.random.MersenneTwister;
+import org.apache.commons.math3.random.RandomGenerator;
+
 import com.github.rinde.rinsim.core.SimulatorAPI;
 import com.github.rinde.rinsim.core.model.ModelBuilder;
 import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
@@ -201,10 +204,17 @@ public final class ExperimentExample {
     // In essence a scenario is just a list of events. The events must implement
     // the TimedEvent interface. You are free to construct any object as a
     // TimedEvent but keep in mind that implementations should be immutable.
+	  
+	  final Point iPoint = new Point(480,30);
+	  final Point iPoint1 = new Point(480,60);
+	  final Point iPoint2 = new Point(960,120);
+	  //final Point iPoint2 = findPoint(SPACING,2);
+	  final Point iPoint3 = findPoint(SPACING,2);
+	  
     return Scenario.builder()
 
       // Adds one depot.
-      .addEvent(AddDepotEvent.create(-1, DEPOT_LOC))
+      .addEvent(AddDepotEvent.create(-1, iPoint2))
 
       // Adds one vehicle.
       .addEvent(AddVehicleEvent.create(-1, VehicleDTO.builder()
@@ -214,13 +224,13 @@ public final class ExperimentExample {
       // Three add parcel events are added. They are announced at different
       // times and have different time windows.
       .addEvent(
-        AddParcelEvent.create(Parcel.builder(P1_PICKUP, P1_DELIVERY)
+        AddParcelEvent.create(Parcel.builder(iPoint, iPoint1)
           .neededCapacity(0)
           .orderAnnounceTime(M1)
           .pickupTimeWindow(TimeWindow.create(M1, M20))
           .deliveryTimeWindow(TimeWindow.create(M4, M30))
           .buildDTO()))
-
+/*
       .addEvent(
         AddParcelEvent.create(Parcel.builder(P2_PICKUP, P2_DELIVERY)
           .neededCapacity(0)
@@ -238,7 +248,7 @@ public final class ExperimentExample {
           .deliveryTimeWindow(
             TimeWindow.create(M13, M60))
           .buildDTO()))
-
+*/
       // Signals the end of the scenario. Note that it is possible to stop the
       // simulation before or after this event is dispatched, that depends on
       // the stop condition (see below).
@@ -266,16 +276,26 @@ public final class ExperimentExample {
       .build();
   }
 
+  static Point findPoint(double spacing, int vCorrection){
+	  //final SimulationResult sr1
+	  final RandomGenerator rng = new MersenneTwister(100L);
+	  final Point initialPoint = new Point(Math.abs(rng.nextInt()) * spacing,
+			  Math.abs((rng.nextInt()-vCorrection)) * spacing);
+	return initialPoint;
+	  
+  }
+  
   enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     INSTANCE {
-    	@OVERRIDE
+    	//@Override
       public void handleTimedEvent(AddVehicleEvent event, SimulatorAPI sim) {
         sim.register(new AgvAgent(event.getVehicleDTO()));
     	  // add you own vehicle to the simulator here
       }
     }
   }
-    static Graph<LengthData> createGrid(int width, int height, int hLines,
+    
+  static Graph<LengthData> createGrid(int width, int height, int hLines,
     	     int vLines, double distance) {
     	   final Graph<LengthData> graph = new MultimapGraph<LengthData>();
 
@@ -286,6 +306,7 @@ public final class ExperimentExample {
     	     if (i % vLines == 0) {
     	       for (int j = 1; j < height; j++) {
     	         final Point cur = new Point(i * distance, j * distance);
+    	         System.out.print(cur);
     	         if (v % 2 == 0) {
     	           graph.addConnection(prev, cur);
     	         } else {
