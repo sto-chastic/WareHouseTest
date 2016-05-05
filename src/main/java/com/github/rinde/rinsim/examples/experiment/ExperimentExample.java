@@ -180,9 +180,9 @@ public final class ExperimentExample {
       // Adds the GUI just like it is added to a Simulator object.
       .showGui(View.builder()
     	.with(GraphRoadModelRenderer.builder())
-    	//.with(RoadUserRenderer.builder()
-    	//		.withImageAssociation(AGV.class,
-    	//				"/graphics/flat/forklift2.png"))
+    	.with(RoadUserRenderer.builder()
+    			.withImageAssociation(AgvAgent.class,
+    					"/graphics/flat/forklift2.png"))
         .with(PDPModelRenderer.builder())
         .with(TimeLinePanel.builder())
         .withResolution((int) RESOLUTION.x, (int) RESOLUTION.y)
