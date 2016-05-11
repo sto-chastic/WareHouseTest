@@ -227,9 +227,9 @@ static Scenario createScenario() {
     // In essence a scenario is just a list of events. The events must implement
     // the TimedEvent interface. You are free to construct any object as a
     // TimedEvent but keep in mind that implementations should be immutable.
-	  final Point p1_pic = new Point(1440,120);
-	  final Point p1_del = new Point(2400,126);
-	  final Point p1_loc = new Point (480,480);
+	  //final Point p1_pic = new Point(1440,120);
+	  //final Point p1_del = new Point(2400,126);
+	  //final Point p1_loc = new Point (480,480);
 	  
 	  // Create list of Vehicles
 	  final Iterable<AddVehicleEvent> list_of_vehicles = create_VehicleEvents(VEHICLES_NUMBER);
@@ -258,7 +258,7 @@ static Scenario createScenario() {
 
       // Three add parcel events are added. They are announced at different
       // times and have different time windows.
-      .addEvent(
+     /* .addEvent(
         AddParcelEvent.create(Parcel.builder(p1_pic, p1_del)
           .neededCapacity(0)
           .orderAnnounceTime(M1)
@@ -283,7 +283,7 @@ static Scenario createScenario() {
           .deliveryTimeWindow(
             TimeWindow.create(M13, M60))
           .buildDTO()))
-          
+*/          
 
       // Signals the end of the scenario. Note that it is possible to stop the
       // simulation before or after this event is dispatched, that depends on
@@ -424,5 +424,5 @@ enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     	   }
     	   return graph;
     	 }
-
+//Know how to allocate paths and calculate the shortest position. I think that's the problem with the exception thrown
 }
