@@ -62,7 +62,7 @@ import com.google.common.collect.ImmutableList;
 public final class ExperimentExample {
   // some constants used in the experiment
   private static final Point RESOLUTION = new Point(600, 500);
-  private static final double VEHICLE_SPEED_KMH = 30d;
+  private static final double VEHICLE_SPEED_KMH = 1000d;
   private static final double MAX_VEHICLE_SPEED_KMH = 50d;
   private static final Point MIN_POINT = new Point(0, 0);
   private static final Point MAX_POINT = new Point(8, 4);
@@ -73,6 +73,7 @@ public final class ExperimentExample {
   private static final Point P2_DELIVERY = new Point(4, 1);
   private static final Point P3_PICKUP = new Point(1, 3);
   private static final Point P3_DELIVERY = new Point(4, 3);
+  private static final double SPEED = 1000d;
 
   private static final long M1 = 60 * 1000L;
   private static final long M4 = 4 * 60 * 1000L;
@@ -179,12 +180,12 @@ public final class ExperimentExample {
       .usePostProcessor(new ExamplePostProcessor())
       // Adds the GUI just like it is added to a Simulator object.
       .showGui(View.builder()
-    	.with(GraphRoadModelRenderer.builder())
+    	.with(GraphRoadModelRenderer.builder().withMargin(2).withDirectionArrows())
 
     	.with(RoadUserRenderer.builder()
     			.withImageAssociation(AgvAgent.class,
     					"/graphics/flat/forklift2.png"))
-        .with(PDPModelRenderer.builder())
+//        .with(PDPModelRenderer.builder())
         .with(TimeLinePanel.builder())
         .withResolution((int) RESOLUTION.x, (int) RESOLUTION.y)
         .withAutoPlay()
@@ -395,11 +396,11 @@ enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     	     if (i % vLines == 0) {
     	       for (int j = 1; j < height; j++) {
     	         final Point cur = new Point(i * distance, j * distance);
-    	         if (v % 2 == 0) {
+//    	         if (v % 2 == 0) {
     	           graph.addConnection(prev, cur);
-    	         } else {
+//    	         } else {
     	           graph.addConnection(cur, prev);
-    	         }
+//    	         }
     	         prev = cur;
     	       }
     	       v++;

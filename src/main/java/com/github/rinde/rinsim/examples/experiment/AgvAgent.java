@@ -10,6 +10,7 @@ import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
 
+
 public class AgvAgent extends Vehicle{
 
 	private static final double SPEED = 1000d;
@@ -50,7 +51,7 @@ public class AgvAgent extends Vehicle{
 	            // it is still available, go there as fast as possible
 	            rm.moveTo(this, curr.get(), time);
 	            if (rm.equalPosition(this, curr.get())) {
-	              // pickup customer
+	              // pickup package
 	              pm.pickup(this, curr.get(), time);
 	            }
 	          }
