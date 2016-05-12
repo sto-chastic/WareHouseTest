@@ -416,5 +416,4 @@ enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     	   }
     	   return graph;
     	 }
-//Know how to allocate paths and calculate the shortest position. I think that's the problem with the exception thrown
 }
