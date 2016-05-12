@@ -9,6 +9,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
+import javax.measure.unit.SI;
+
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
@@ -18,13 +20,16 @@ import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.TimeWindowPolicy.TimeWindowPolicies;
 import com.github.rinde.rinsim.core.model.pdp.VehicleDTO;
+import com.github.rinde.rinsim.core.model.road.CollisionGraphRoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModelBuilders;
+import com.github.rinde.rinsim.core.model.road.RoadModelBuilders.CollisionGraphRMB;
 import com.github.rinde.rinsim.experiment.Experiment;
 import com.github.rinde.rinsim.experiment.Experiment.SimulationResult;
 import com.github.rinde.rinsim.experiment.ExperimentResults;
 import com.github.rinde.rinsim.experiment.MASConfiguration;
 import com.github.rinde.rinsim.geom.Graph;
 import com.github.rinde.rinsim.geom.LengthData;
+import com.github.rinde.rinsim.geom.ListenableGraph;
 import com.github.rinde.rinsim.geom.MultimapGraph;
 import com.github.rinde.rinsim.geom.Point;
 import com.github.rinde.rinsim.pdptw.common.AddDepotEvent;
@@ -62,8 +67,7 @@ import com.google.common.collect.ImmutableList;
 public final class ExperimentExample {
   // some constants used in the experiment
   private static final Point RESOLUTION = new Point(600, 500);
-  private static final double VEHICLE_SPEED_KMH = 1000d;
-  private static final double MAX_VEHICLE_SPEED_KMH = 50d;
+  private static final double VEHICLE_SPEED_KMH = 500d;
   private static final Point MIN_POINT = new Point(0, 0);
   private static final Point MAX_POINT = new Point(8, 4);
   private static final Point DEPOT_LOC = new Point(5, 2);
@@ -73,7 +77,6 @@ public final class ExperimentExample {
   private static final Point P2_DELIVERY = new Point(4, 1);
   private static final Point P3_PICKUP = new Point(1, 3);
   private static final Point P3_DELIVERY = new Point(4, 3);
-  private static final double SPEED = 1000d;
 
   private static final long M1 = 60 * 1000L;
   private static final long M4 = 4 * 60 * 1000L;
@@ -88,6 +91,8 @@ public final class ExperimentExample {
   private static final long M30 = 30 * 60 * 1000L;
   private static final long M40 = 40 * 60 * 1000L;
   private static final long M60 = 60 * 60 * 1000L;
+  
+  private static final long EXP_TIME_DURATION = 10 * 60 * 60 * 1000L;
   
   static final int VERTICAL_SPACING = 16;
   static final int HORIZONTAL_SPACING = 16;
@@ -104,6 +109,7 @@ public final class ExperimentExample {
   static final int DEPOT_NUMBER = 5;
   
   static final long RANDOM_SEED = 53L;
+  private static final double VEHICLE_LENGTH = 2d;
 
   private ExperimentExample() {}
 
@@ -161,7 +167,7 @@ public final class ExperimentExample {
 
       // The number of repetitions for each simulation. Each repetition will
       // have a unique random seed that is given to the simulator.
-      .repeat(2)
+      .repeat(1)
 
       // The master random seed from which all random seeds for the
       // simulations will be drawn.
@@ -185,7 +191,7 @@ public final class ExperimentExample {
     	.with(RoadUserRenderer.builder()
     			.withImageAssociation(AgvAgent.class,
     					"/graphics/flat/forklift2.png"))
-//        .with(PDPModelRenderer.builder())
+        .with(PDPModelRenderer.builder())
         .with(TimeLinePanel.builder())
         .withResolution((int) RESOLUTION.x, (int) RESOLUTION.y)
         .withAutoPlay()
@@ -236,6 +242,7 @@ static Scenario createScenario() {
 	  final Iterable<AddVehicleEvent> list_of_vehicles = create_VehicleEvents(VEHICLES_NUMBER);
 	  final Iterable<AddParcelEvent> list_of_parcels = create_ParcelEvents(PARCELS_NUMBER);
 	  final Iterable<AddParcelEvent> list_of_depots = create_ParcelEvents(DEPOT_NUMBER);
+	  //final ListenableGraph<> gr = new ListenableGraph<>(createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING));
 	  
     return Scenario.builder()
 
@@ -259,50 +266,31 @@ static Scenario createScenario() {
 
       // Three add parcel events are added. They are announced at different
       // times and have different time windows.
-     /* .addEvent(
-        AddParcelEvent.create(Parcel.builder(p1_pic, p1_del)
-          .neededCapacity(0)
-          .orderAnnounceTime(M1)
-          .pickupTimeWindow(TimeWindow.create(M1, M20))
-          .deliveryTimeWindow(TimeWindow.create(M4, M30))
-          .buildDTO()))
-
-      .addEvent(
-        AddParcelEvent.create(Parcel.builder(P2_PICKUP, P2_DELIVERY)
-          .neededCapacity(0)
-          .orderAnnounceTime(M5)
-          .pickupTimeWindow(TimeWindow.create(M10, M25))
-          .deliveryTimeWindow(
-            TimeWindow.create(M20, M40))
-          .buildDTO()))
-
-      .addEvent(
-        AddParcelEvent.create(Parcel.builder(P3_PICKUP, P3_DELIVERY)
-          .neededCapacity(0)
-          .orderAnnounceTime(M7)
-          .pickupTimeWindow(TimeWindow.create(M12, M18))
-          .deliveryTimeWindow(
-            TimeWindow.create(M13, M60))
-          .buildDTO()))
-*/          
+        
 
       // Signals the end of the scenario. Note that it is possible to stop the
       // simulation before or after this event is dispatched, that depends on
       // the stop condition (see below).
-      .addEvent(TimeOutEvent.create(M60))
-      .scenarioLength(M60)
+      .addEvent(TimeOutEvent.create(EXP_TIME_DURATION))
+      .scenarioLength(EXP_TIME_DURATION)
 
       // Adds a plane road model as this is part of the problem
       //.addModel(RoadModelBuilders.staticGraph(
       		 //createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING)))
-      .addModel(RoadModelBuilders.staticGraph(
-     		 createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING))
-    	        )
+      .addModel(RoadModelBuilders.dynamicGraph(new ListenableGraph<>(
+    		  createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING))
+     		 ).withCollisionAvoidance()
+    		  .withDistanceUnit(SI.METER)
+              .withVehicleLength(VEHICLE_LENGTH))
+      /*.addModel(
+    	        RoadModelBuilders.dynamicGraph(GraphCreator.createSimpleGraph())
+    	          .withCollisionAvoidance()
+    	          .withDistanceUnit(SI.METER)
+    	          .withVehicleLength(VEHICLE_LENGTH))*/
       // Adds the pdp model
       .addModel(
         DefaultPDPModel.builder()
-          .withTimeWindowPolicy(TimeWindowPolicies.TARDY_ALLOWED))
-
+          .withTimeWindowPolicy(TimeWindowPolicies.LIBERAL))
       // The stop condition indicates when the simulator should stop the
       // simulation. Typically this is the moment when all tasks are performed.
       // Custom stop conditions can be created by implementing the StopCondition
@@ -317,12 +305,15 @@ static Scenario createScenario() {
 	// Create ArrayList where our Events are stored
 	ArrayList<AddVehicleEvent> myVehicleList = new ArrayList<AddVehicleEvent>();
 	
+	final double intervW = (MAX_WIDTH + 1)/integ;
+	final double intervH = (MAX_HEIGHT + 1)/integ;
+	
 	for (int i = 1; i<=integ; i++){
 		double random_x = Math.random();
 		double random_y = Math.random();
 		// make sure that the vehicles are on the grid
 		final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
-		final double ycoor = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
+		final double ycoor = intervH*(i-1) + random_y * (intervH*i - intervH*(i-1) + 1) - (intervH*(i-1) + random_y * (intervH*i - intervH*(i-1) + 1))%MIN_VER;
 				
 		myVehicleList.add(AddVehicleEvent.create(-1, VehicleDTO.builder()
 		    	.startPosition(new Point(ycoor,xcoor))
@@ -413,11 +404,11 @@ enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     	     if (i % hLines == 0) {
     	       for (int j = 1; j < width + 1; j++) {
     	         final Point cur = new Point(j * distance, i * distance);
-    	         if (y % 2 == 0) {
+    	         //if (y % 2 == 0) {
     	           graph.addConnection(prev, cur);
-    	         } else {
+    	         //} else {
     	           graph.addConnection(cur, prev);
-    	         }
+    	         //}
     	         prev = cur;
     	       }
     	     }
