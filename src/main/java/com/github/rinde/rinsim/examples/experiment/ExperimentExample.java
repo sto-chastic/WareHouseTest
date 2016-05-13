@@ -16,6 +16,7 @@ import org.apache.commons.math3.random.RandomGenerator;
 
 import com.github.rinde.rinsim.core.SimulatorAPI;
 import com.github.rinde.rinsim.core.model.ModelBuilder;
+import com.github.rinde.rinsim.core.model.comm.CommModel;
 import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.TimeWindowPolicy.TimeWindowPolicies;
@@ -43,6 +44,7 @@ import com.github.rinde.rinsim.scenario.TimeOutEvent;
 import com.github.rinde.rinsim.scenario.TimedEvent;
 import com.github.rinde.rinsim.scenario.TimedEventHandler;
 import com.github.rinde.rinsim.ui.View;
+import com.github.rinde.rinsim.ui.renderers.CommRenderer;
 import com.github.rinde.rinsim.ui.renderers.GraphRoadModelRenderer;
 import com.github.rinde.rinsim.ui.renderers.PDPModelRenderer;
 import com.github.rinde.rinsim.ui.renderers.PlaneRoadModelRenderer;
@@ -67,30 +69,12 @@ import com.google.common.collect.ImmutableList;
 public final class ExperimentExample {
   // some constants used in the experiment
   private static final Point RESOLUTION = new Point(600, 500);
-  private static final double VEHICLE_SPEED_KMH = 500d;
-  private static final Point MIN_POINT = new Point(0, 0);
-  private static final Point MAX_POINT = new Point(8, 4);
-  private static final Point DEPOT_LOC = new Point(5, 2);
-  private static final Point P1_PICKUP = new Point(1, 2);
-  private static final Point P1_DELIVERY = new Point(4, 2);
-  private static final Point P2_PICKUP = new Point(1, 1);
-  private static final Point P2_DELIVERY = new Point(4, 1);
-  private static final Point P3_PICKUP = new Point(1, 3);
-  private static final Point P3_DELIVERY = new Point(4, 3);
+  private static final double VEHICLE_SPEED_KMH = 100d;
 
   private static final long M1 = 60 * 1000L;
   private static final long M4 = 4 * 60 * 1000L;
-  private static final long M5 = 5 * 60 * 1000L;
-  private static final long M7 = 7 * 60 * 1000L;
-  private static final long M10 = 10 * 60 * 1000L;
-  private static final long M12 = 12 * 60 * 1000L;
-  private static final long M13 = 13 * 60 * 1000L;
-  private static final long M18 = 18 * 60 * 1000L;
   private static final long M20 = 20 * 60 * 1000L;
-  private static final long M25 = 25 * 60 * 1000L;
   private static final long M30 = 30 * 60 * 1000L;
-  private static final long M40 = 40 * 60 * 1000L;
-  private static final long M60 = 60 * 60 * 1000L;
   
   private static final long EXP_TIME_DURATION = 10 * 60 * 60 * 1000L;
   
@@ -104,9 +88,9 @@ public final class ExperimentExample {
   static final double MIN_VER = VERTICAL_SPACING * SPACING;
   static final double MIN_HOR = HORIZONTAL_SPACING * SPACING;
   
-  static final int VEHICLES_NUMBER = 5 ;
-  static final int PARCELS_NUMBER = 5 ;
-  static final int DEPOT_NUMBER = 5;
+  static final int VEHICLES_NUMBER = 3 ;
+  static final int PARCELS_NUMBER = 10 ;
+  static final int DEPOT_NUMBER = 1;
   
   static final long RANDOM_SEED = 53L;
   private static final double VEHICLE_LENGTH = 2d;
@@ -186,13 +170,18 @@ public final class ExperimentExample {
       .usePostProcessor(new ExamplePostProcessor())
       // Adds the GUI just like it is added to a Simulator object.
       .showGui(View.builder()
-    	.with(GraphRoadModelRenderer.builder().withMargin(2).withDirectionArrows())
+    	.with(GraphRoadModelRenderer.builder().withMargin(2))
 
     	.with(RoadUserRenderer.builder()
-    			.withImageAssociation(AgvAgent.class,
-    					"/graphics/flat/forklift2.png"))
-        .with(PDPModelRenderer.builder())
+    			//.withImageAssociation(AgvAgent.class,	"/graphics/flat/forklift2.png")
+        //.with(PDPModelRenderer.builder())
+    			)
+        .with(CommRenderer.builder()
+                .withReliabilityColors()
+                .withMessageCount())
+        
         .with(TimeLinePanel.builder())
+        
         .withResolution((int) RESOLUTION.x, (int) RESOLUTION.y)
         .withAutoPlay()
        // .withAutoClose()
@@ -241,7 +230,7 @@ static Scenario createScenario() {
 	  // Create list of Vehicles
 	  final Iterable<AddVehicleEvent> list_of_vehicles = create_VehicleEvents(VEHICLES_NUMBER);
 	  final Iterable<AddParcelEvent> list_of_parcels = create_ParcelEvents(PARCELS_NUMBER);
-	  final Iterable<AddParcelEvent> list_of_depots = create_ParcelEvents(DEPOT_NUMBER);
+	  final Iterable<AddDepotEvent> list_of_depots = create_DepotEvents(DEPOT_NUMBER);
 	  //final ListenableGraph<> gr = new ListenableGraph<>(createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING));
 	  
     return Scenario.builder()
@@ -275,18 +264,15 @@ static Scenario createScenario() {
       .scenarioLength(EXP_TIME_DURATION)
 
       // Adds a plane road model as this is part of the problem
-      //.addModel(RoadModelBuilders.staticGraph(
-      		 //createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING)))
       .addModel(RoadModelBuilders.dynamicGraph(new ListenableGraph<>(
     		  createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING))
      		 ).withCollisionAvoidance()
     		  .withDistanceUnit(SI.METER)
               .withVehicleLength(VEHICLE_LENGTH))
-      /*.addModel(
-    	        RoadModelBuilders.dynamicGraph(GraphCreator.createSimpleGraph())
-    	          .withCollisionAvoidance()
-    	          .withDistanceUnit(SI.METER)
-    	          .withVehicleLength(VEHICLE_LENGTH))*/
+      
+      .addModel(CommModel.builder())
+      
+      
       // Adds the pdp model
       .addModel(
         DefaultPDPModel.builder()
@@ -331,13 +317,18 @@ static Scenario createScenario() {
 		for (int i = 1; i <= integ; i++){
 			double random_x = Math.random();
 			double random_y = Math.random();
+			
+			double random2_x = Math.random();
+			double random2_y = Math.random();
+			
 			final double xcoor_pic = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
 			final double ycoor_pic = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
-			final double xcoor_del = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
-			final double ycoor_del = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
+			final double xcoor_del = random2_x * (MAX_WIDTH + 1) - (random2_x * (MAX_WIDTH + 1))%MIN_HOR;
+			final double ycoor_del = random2_y * (MAX_HEIGHT + 1) - (random2_y * (MAX_HEIGHT+ 1))%MIN_VER;
 			
 			final Point p_pic = new Point(ycoor_pic,xcoor_pic);
 			final Point p_del = new Point(ycoor_del,xcoor_del);
+			
 			
 			myParcelList.add(AddParcelEvent.create(Parcel.builder(p_pic, p_del)
 					.neededCapacity(0)
