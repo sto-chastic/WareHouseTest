@@ -90,10 +90,12 @@ public final class ExperimentExample {
   
   static final int VEHICLES_NUMBER = 3 ;
   static final int PARCELS_NUMBER = 10 ;
-  static final int DEPOT_NUMBER = 1;
+  static final int DEPOT_NUMBER = 3;
   
   static final long RANDOM_SEED = 53L;
   private static final double VEHICLE_LENGTH = 2d;
+  
+  static ArrayList<Point> point_dep_list = new ArrayList<Point>(DEPOT_NUMBER);
 
   private ExperimentExample() {}
 
@@ -173,9 +175,9 @@ public final class ExperimentExample {
     	.with(GraphRoadModelRenderer.builder().withMargin(2))
 
     	.with(RoadUserRenderer.builder()
-    			//.withImageAssociation(AgvAgent.class,	"/graphics/flat/forklift2.png")
-        //.with(PDPModelRenderer.builder())
-    			)
+    			.withImageAssociation(AgvAgent.class,	"/graphics/flat/forklift2.png"))
+        .with(PDPModelRenderer.builder())
+        
         .with(CommRenderer.builder()
                 .withReliabilityColors()
                 .withMessageCount())
@@ -223,15 +225,25 @@ static Scenario createScenario() {
     // In essence a scenario is just a list of events. The events must implement
     // the TimedEvent interface. You are free to construct any object as a
     // TimedEvent but keep in mind that implementations should be immutable.
-	  //final Point p1_pic = new Point(1440,120);
-	  //final Point p1_del = new Point(2400,126);
-	  //final Point p1_loc = new Point (480,480);
 	  
-	  // Create list of Vehicles
+	  Point point_dep;
+	  
+	  for (int i = 0; i <= DEPOT_NUMBER-1; i++){
+		  double random_x = Math.random();
+		  double random_y = Math.random();
+		  final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
+		  final double ycoor = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
+		  point_dep = new Point(ycoor,xcoor);
+		  point_dep_list.add(point_dep);
+	  }
+	  
+	// Create list of Vehicles, Parcels, and Depots
+	// Dropping points of parcels are the Depot points
 	  final Iterable<AddVehicleEvent> list_of_vehicles = create_VehicleEvents(VEHICLES_NUMBER);
 	  final Iterable<AddParcelEvent> list_of_parcels = create_ParcelEvents(PARCELS_NUMBER);
 	  final Iterable<AddDepotEvent> list_of_depots = create_DepotEvents(DEPOT_NUMBER);
-	  //final ListenableGraph<> gr = new ListenableGraph<>(createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING));
+	//final ListenableGraph<> gr = new ListenableGraph<>(createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING));
+	  
 	  
     return Scenario.builder()
 
@@ -295,11 +307,11 @@ static Scenario createScenario() {
 	final double intervH = (MAX_HEIGHT + 1)/integ;
 	
 	for (int i = 1; i<=integ; i++){
-		double random_x = Math.random();
-		double random_y = Math.random();
+		double rand_x = Math.random();
+		double rand_y = Math.random();
 		// make sure that the vehicles are on the grid
-		final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
-		final double ycoor = intervH*(i-1) + random_y * (intervH*i - intervH*(i-1) + 1) - (intervH*(i-1) + random_y * (intervH*i - intervH*(i-1) + 1))%MIN_VER;
+		final double xcoor = rand_x * (MAX_WIDTH + 1) - (rand_x * (MAX_WIDTH + 1))%MIN_HOR;
+		final double ycoor = intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1) - (intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1))%MIN_VER;
 				
 		myVehicleList.add(AddVehicleEvent.create(-1, VehicleDTO.builder()
 		    	.startPosition(new Point(ycoor,xcoor))
@@ -314,23 +326,16 @@ static Scenario createScenario() {
   static Iterable<AddParcelEvent> create_ParcelEvents(int integ){
 		ArrayList<AddParcelEvent> myParcelList = new ArrayList<AddParcelEvent>();
 		
-		for (int i = 1; i <= integ; i++){
+		for (int i = 0; i <= integ-1; i++){
 			double random_x = Math.random();
 			double random_y = Math.random();
 			
-			double random2_x = Math.random();
-			double random2_y = Math.random();
-			
 			final double xcoor_pic = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
 			final double ycoor_pic = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
-			final double xcoor_del = random2_x * (MAX_WIDTH + 1) - (random2_x * (MAX_WIDTH + 1))%MIN_HOR;
-			final double ycoor_del = random2_y * (MAX_HEIGHT + 1) - (random2_y * (MAX_HEIGHT+ 1))%MIN_VER;
 			
-			final Point p_pic = new Point(ycoor_pic,xcoor_pic);
-			final Point p_del = new Point(ycoor_del,xcoor_del);
+			final Point p_pic = new Point(ycoor_pic,xcoor_pic);	
 			
-			
-			myParcelList.add(AddParcelEvent.create(Parcel.builder(p_pic, p_del)
+			myParcelList.add(AddParcelEvent.create(Parcel.builder(p_pic, point_dep_list.get(i%DEPOT_NUMBER))
 					.neededCapacity(0)
 					.orderAnnounceTime(M1)
 					.pickupTimeWindow(TimeWindow.create(M1, M20))
@@ -345,13 +350,9 @@ static Scenario createScenario() {
   static Iterable<AddDepotEvent> create_DepotEvents(int integ){
 		ArrayList<AddDepotEvent> myDepotList = new ArrayList<AddDepotEvent>();
 		
-		for (int i = 1; i <= integ; i++){
-			double random_x = Math.random();
-			double random_y = Math.random();
-			final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
-			final double ycoor = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
+		for (int i = 0; i <= integ-1; i++){
 			
-			myDepotList.add(AddDepotEvent.create(-1, new Point(ycoor,xcoor)));
+			myDepotList.add(AddDepotEvent.create(-1, point_dep_list.get(i)));
 		}
 		
 		Iterable<AddDepotEvent> depotBuilder = myDepotList;
@@ -361,7 +362,10 @@ static Scenario createScenario() {
 enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     INSTANCE {
       public void handleTimedEvent(AddVehicleEvent event, SimulatorAPI sim) {
-        sim.register(new AgvAgent(event.getVehicleDTO()));
+    	AgvAgent agv_agent = new AgvAgent(event.getVehicleDTO());
+        sim.register(agv_agent);
+        agv_agent.getAvgId();
+        ;
     	  // add you own vehicle to the simulator here
       }
     }
