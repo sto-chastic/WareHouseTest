@@ -30,6 +30,7 @@ import com.github.rinde.rinsim.geom.Point;
 import com.github.rinde.rinsim.pdptw.common.AddVehicleEvent;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.github.rinde.rinsim.examples.experiment.Messages;
 
 
 public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser{
@@ -130,11 +131,10 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser{
             } else {
 	           // it is still available, go there as fast as possible
             rm.moveTo(this, curr.get(), time);
-	            if (rm.equalPosition(this, curr.get())) {
-	              // pickup package
-	              pm.pickup(this, curr.get(), time);
-	              
-	            }
+	        if (rm.equalPosition(this, curr.get())) {
+	            // pickup package
+	        	pm.pickup(this, curr.get(), time);
+	        }
 	          }
 	      }
 	      
@@ -147,34 +147,38 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser{
 		    
 		    // device updates its information about the other AGVs
 		    ImmutableList<Message> M = device.get().getUnreadMessages();
-		    
+		    System.out.println(M);
 		  //Initialize routingInfo
-	    	for (int i = 0; i< 3; i++){
+	    	for (int i = 0; i< 3; i++){ //why 3?
 	    		routingInfo.add(i, Arrays.asList(new Point(0,0),new Point(0,0)));
 	    	}
 	    	
 		    for (int i = 0; i< M.size(); i++){
 		    	if (M.get(i).getContents() == Msgs.AGV_ROUTING){
 		    		CommUser sender = M.get(i).getSender();
-		    		for (int j = 0; j < AGV_id.size(); j++){
+		    		//System.out.println(sender);
+		    		for (int j = 0; j < AGV_id.size(); j++){//It's getting updated information from all the other AGV's? How do we know it's more updated?
 		    			routingInfo.set(j, route.get(j));
 		    		}
+		    		
 		    	}
 		    }
-		    System.out.println(routingInfo.get(0));
-		    System.out.println(routingInfo.get(1));
-		    System.out.println(routingInfo.get(2));
+		    //System.out.println(routingInfo.get(0));
+		    //System.out.println(routingInfo.get(1));
+		    //System.out.println(routingInfo.get(2));
 		 
 	    } 
 		else if (device.get().getReceivedCount() == 0) {
     		//device.get().broadcast(Messages.HELLO_WORLD);
     		
+			Messages newMsg;
+			
     		// device broadcasts the route that it plans to follow
-    		if (destination.isPresent()){    			
+    		if (destination.isPresent()){    			//Destination is not always indicator of route. If AGV not loaded, there is no destination.
         		for (int i=0; i<=existingAgvs.size()-1; i++){
-        			if(this!=existingAgvs.get(i)){
+        			if(this!=existingAgvs.get(i)){ //If not this? Isn't it supposed to be this?
         				route.add(i, rm.getShortestPathTo(this, destination.get()));
-        				device.get().send(Msgs.AGV_ROUTING, existingAgvs.get(i));
+        				device.get().send(Msgs.AGV_ROUTING, existingAgvs.get(i)); //Maybe can be bypassed by broadcast?
         			}
         			else{
         				// make sure that there is always a value
@@ -204,6 +208,15 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser{
 		Msgs(){
 		}
 	};
+	
+/*	enum MsgsClass implements MessageContents{
+		MSG_CLASS{
+			public void MessageContents(){
+				
+			}
+		}
+		
+	};*/
 
 	@Override
 	public Optional<Point> getPosition() {
