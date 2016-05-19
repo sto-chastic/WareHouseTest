@@ -175,21 +175,13 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser{
     		}
     		
     	} 
-		else if (time.getStartTime() - lastReceiveTime > LONELINESS_THRESHOLD) {
+/*		else if (time.getStartTime() - lastReceiveTime > LONELINESS_THRESHOLD) {
 			device.get().broadcast(Messages.WHERE_IS_EVERYBODY);
-		}	      
+		}	*/      
 	      	
 	}
 	
-	enum Messages implements MessageContents {
-	    HELLO_WORLD, NICE_TO_MEET_YOU, WHERE_IS_EVERYBODY, M1;
-    	}
-	
-	enum Msgs implements MessageContents{
-		AGV_ROUTING;
-		Msgs(){
-		}
-	};
+
 	
 /*	enum MsgsClass implements MessageContents{
 		MSG_CLASS{
