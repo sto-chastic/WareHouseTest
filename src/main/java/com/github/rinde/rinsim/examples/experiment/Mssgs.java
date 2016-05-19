@@ -32,7 +32,7 @@ import com.github.rinde.rinsim.pdptw.common.AddVehicleEvent;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
-public class Messages {
+public class Mssgs implements MessageContents {
 
 	Optional<List<List<Point>>> routingInfo ;
 	Optional<List<Point>> senderRoute ;
@@ -40,7 +40,7 @@ public class Messages {
 	Optional<List<String>> aGV_IDs ;
 	Optional<String> senderID;
 	
-	public Messages(){
+	public Mssgs(){
 		routingInfo = Optional.absent();
 		senderRoute = Optional.absent();
 		timeStamps = Optional.absent();
