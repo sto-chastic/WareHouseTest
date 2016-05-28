@@ -47,24 +47,27 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 	Optional<RoadModel> roadModel;
 	Optional<CommDevice> device;
 	Optional<Point> destination;
-	Optional <Point> endPoint;
+	Optional<Point> safePositionDestination;
+	Optional<Point> normalOperationDestination;
 	long lastReceiveTime;
 	private final double range;
 	private final double reliability;
 	private final double rng;
 	
+	private boolean collisionDanger = false;
+	
 	private static final double SPEED = 1000d;
 	private Optional<Parcel> curr;
-	
+	private long timeLeft = 0;
 	public static List<String> AGV_id = new LinkedList<String>();
 	
 	//List<List<Point>> route = new List<List<Point>>(3);
 	
-	//LinkedList<List<Point>> routingInfo = new LinkedList<List<Point>>(3);
+	//LinkedList<List<Point>> routingInfo = new LinkedList<List<Point>>(3);  
 	
 	// the path to follow and the path of another agv sent to this one
 	public Optional<List<Point>> pathToFollow;
-    public Optional<List<Point>> agvRoute;
+    public Optional<List<Point>> otherAgvRoute;
 	
 	// Optional checking of route for collision with another agv
 	private Optional<List<Point>> checkedRoute;
@@ -77,14 +80,14 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 		curr = Optional.absent();
 		checkedRoute = Optional.absent();
 		pathToFollow = Optional.absent();
-		agvRoute = Optional.absent();
+		otherAgvRoute = Optional.absent();
 		
 		rng = 1000;
 	    device = Optional.absent();
 	    //roadModel = Optional.absent();
 	    destination = Optional.absent();
-	    
-	    endPoint = Optional.absent();
+	    normalOperationDestination = Optional.absent();
+	    safePositionDestination = Optional.absent();
 
 	    range = MIN_RANGE + rng * (MAX_RANGE - MIN_RANGE);
 	    reliability = 0.9;
@@ -140,7 +143,7 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 		final RoadModel rm = getRoadModel();
 	    final PDPModel pm = getPDPModel();
 	    
-	    final List<AgvAgent> existingAgvs = new LinkedList<AgvAgent>(rm.getObjectsOfType(AgvAgent.class));
+//	    final List<AgvAgent> existingAgvs = new LinkedList<AgvAgent>(rm.getObjectsOfType(AgvAgent.class));
 	    
 	    //--------Package Handling---------- 
 	   
@@ -151,96 +154,63 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 	      curr = Optional.fromNullable(RoadModels.findClosestObject(
 	        rm.getPosition(this), rm, Parcel.class));
 	    }
-	    
-	    if (destination.isPresent()) {
-	    	endPoint = destination;
-	    }
 	      
-	    if (curr.isPresent()) {
+	    if (curr.isPresent() && !collisionDanger) {
 	        final boolean inCargo = pm.containerContains(this, curr.get());
 	        // sanity check: if it is not in our cargo AND it is also not on the
 	        // RoadModel, we cannot go to curr anymore.
+	        timeLeft = curr.get().getDeliveryTimeWindow().end();
 	        if (!inCargo && !rm.containsObject(curr.get())) {
 	          curr = Optional.absent();
-	        } else if (inCargo) {
-	          // if it is in cargo, go to its destination by checking for collision if
-	          // there is a message from the other AGVs around it.
-	        	destination = Optional.of(curr.get().getDeliveryLocation());
-	        	
-	        	if (checkedRoute.isPresent() && !queue_checkedRoute.isEmpty()) {
-	        		// follow the path calculated
-	        		//System.out.println("Checked Route");
-	        		//if (!queue_checkedRoute.equals(checkedRoute.get())) {
-	        			//System.out.println(getThisAgvID().toString().split("@")[1]);
-	        			//System.out.println(checkedRoute.get());
-	        			//System.out.println(queue_checkedRoute);
-	        			//System.out.println(this.getPosition().get());
-	        			//System.out.println(rm.getShortestPathTo(this, curr.get().getDeliveryLocation()));
-	        			//System.out.println(pathToFollow.get());
-	        			//System.out.println(agvRoute.get());
-	        		//}
-	        			// save the destination of the agv
-	        			//endPoint = Optional.of(queue_checkedRoute.getLast());
-	        		
-	        		//System.out.println("IS EMPTY OR IS NOT EMPTY");
-	        		//System.out.println(!checkedRoute.get().isEmpty());
-	        			
-	        		// check if the distance between this point and the next is an exact quantized
-	        		// distance and correct the mini error
-	        		LinkedList<Point> thisToEnd = new LinkedList<Point>(rm.getShortestPathTo(this, endPoint.get()));
-	        		boolean checkx = queue_checkedRoute.getFirst().x - thisToEnd.getFirst().x == 30;
-	        		boolean checky = queue_checkedRoute.getFirst().y - thisToEnd.getFirst().y == 30;	
-	        		if (checkx || checky) {
-	        			queue_checkedRoute.addFirst(new Point(thisToEnd.getFirst().x, thisToEnd.getFirst().y));
-	        		}
-	        		
-	        		rm.followPath(this,queue_checkedRoute, time);
-	        		
-	        		//System.out.println("Checked Route After");
-	        		//System.out.println(queue_checkedRoute);
-	        	}
-	        	else {
-	        		// Just casually move to the designated location
-	        		//System.out.println("Shortest Route");
-	        		//System.out.println(rm.getShortestPathTo(this, curr.get().getDeliveryLocation()));
-	  	      		rm.moveTo(this, curr.get().getDeliveryLocation(), time);
-	  	      		//rm.followPath(this, new LinkedList<Point>(rm.getShortestPathTo(this, curr.get().getDeliveryLocation())), time);
-	  	      		// save the new destination of the agv
-	  	      		endPoint = Optional.of(curr.get().getDeliveryLocation());
-	  	      		System.out.println("ENTERED IN THIS LOOP");
-	        	}
-            if (rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
-            // deliver when we arrive
-	             pm.deliver(this, curr.get(), time);
-	        }
-            } else {
-            	if (checkedRoute.isPresent() && !queue_checkedRoute.isEmpty()) {
-            		rm.followPath(this,queue_checkedRoute, time);
-            	}
-            	else {
-            		// if not communication with other AGV go there as soon as possible
-                	rm.moveTo(this, curr.get(), time);
-            	}
-            	// make sure that destination has no value
-            	destination = Optional.absent();
-            	// save the destination of the AGV until it picks the package
-            	endPoint = Optional.of(curr.get().getPickupLocation());
-            	//System.out.println(getThisAgvID().toString().split("@")[1]);
-    			//System.out.println(endPoint);
-    			//System.out.println(queue_checkedRoute);
-	        if (rm.equalPosition(this, curr.get())) {
-	            // pickup package
-	        	pm.pickup(this, curr.get(), time);
-	        }
-	          }
-	      }
-	    
-	    // Path to follow
-	    if (endPoint.isPresent()) {
-	    	pathToFollow = Optional.of(rm.getShortestPathTo(this, endPoint.get()));
-	    	//System.out.println(getThisAgvID().toString().split("@")[1]);
-	    	//System.out.println(pathToFollow.get());
+	        } 
+	        else if (inCargo) {
+		          // if it is in cargo, go to its destination
+		        destination = Optional.of(curr.get().getDeliveryLocation());
+		        
+		        	
+	    		// Just casually move to the designated location
+	      		//rm.moveTo(this, curr.get().getDeliveryLocation(), time);
+	      		// save the new destination of the agv
+	      		//endPoint = Optional.of(curr.get().getDeliveryLocation());
+		  	      		
+		        	
+	            if (rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
+	            // deliver when we arrive
+		             pm.deliver(this, curr.get(), time);
+		        }
+            } 
+	        else {
+
+	            //rm.moveTo(this, curr.get(), time);
+	        	// make sure that destination has no value
+	        	//destination = Optional.absent();
+	        	destination = Optional.of(curr.get().getPickupLocation());
+	        	// save the destination of the AGV until it picks the package
+	        	//endPoint = Optional.of(curr.get().getPickupLocation());
+	
+		        if (rm.equalPosition(this, curr.get())) {
+		            // pickup package
+		        	pm.pickup(this, curr.get(), time);
+		        }
+            }
+	        pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
+	        rm.moveTo(this, destination.get(), time); 
 	    }
+	    else if(collisionDanger){
+	    	pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
+    		System.out.println("Path to follow:");
+    		System.out.println(pathToFollow);
+	    	rm.moveTo(this, destination.get(), time);
+	    	if (rm.getPosition(this).equals(destination.get())) {
+	    		pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
+	    		destination = safePositionDestination;
+	    		if (rm.getPosition(this).equals(safePositionDestination.get())){
+		    		collisionDanger = false;
+		    		destination = normalOperationDestination;
+	    		}
+	        }
+	    }
+
 	      
 	    //--------Message Handling----------
 	    
@@ -253,33 +223,24 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 		    for (int i = 0; i< M.size(); i++){
 		    	Mssgs temp = (Mssgs) M.get(i).getContents();
 		    	
-		    	agvRoute = (Optional<List<Point>>) temp.getSenderRoute();
+		    	otherAgvRoute = temp.getSenderRoute();
+		    	double tempDist = temp.getEucDistance();
 		    	
-		    	System.out.println(getThisAgvID().toString().split("@")[1]);
-		    	
-		    	System.out.println("Message Received ROUTE SENT");
-		    	System.out.println(agvRoute.isPresent());
-		    	
-		    	System.out.println("PATH FOUND");
-		    	System.out.println(pathToFollow.isPresent());
-		    	
-		    	if (agvRoute.isPresent() && pathToFollow.isPresent()) {
-		    		// create an instance of the RouteChecker class which is responsible for comparing
-		    		// the 2 paths and it returns a new one, changed or not according to if a collision
-		    		// would be possible
-		    		
-		    		//Initialize the queue each time to avoid elements aggregation
-		    		queue_checkedRoute.removeAll(queue_checkedRoute);
-		    		RouteChecker check = new RouteChecker(getThisAgvID(), pathToFollow.get(), agvRoute.get(), rm);
-		    		checkedRoute = Optional.of(check.newRoute);
-		    		queue_checkedRoute.addAll(checkedRoute.get());
-		    		System.out.println("CALCULATION OF CHECKEDROUTE");
-		    		//System.out.println(getThisAgvID().toString().split("@")[1]);
-		    		System.out.println(checkedRoute.get());
-	    			//System.out.println(pathToFollow.get());
-	    			//System.out.println(agvRoute.get());
-		    		//System.out.println("CALCULATION OF CHECKEDROUTE");
+		    	//System.out.println(getThisAgvID().toString().split("@")[1]);
+		    	//&& tempDist<eucDistancetoTarg()
+		    	if (otherAgvRoute.isPresent() && pathToFollow.isPresent()  && !collisionDanger) {
+		    		RouteChecker check = new RouteChecker(this, pathToFollow.get(), otherAgvRoute.get(), rm);
+			    	collisionDanger = check.getCollisionDanger();
+			    	if(collisionDanger){
+			    		normalOperationDestination = destination;
+//			    		pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
+			    		destination = check.getPreviousCrossRoad();
+					    safePositionDestination = check.getBestPoint();
+			    		System.out.println("Changed Destination:");
+			    		System.out.println(destination);
+			    	}
 		    	}
+
 		    }
 		    
 	    }
@@ -287,19 +248,41 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 			//Create new Mssgs instanse for sending or broadcasting
 			Mssgs newMsg = new Mssgs();		
     		// device broadcasts the route that it plans to follow
-			if (endPoint.isPresent()) {
+			if (destination.isPresent()) {
 				newMsg.setSenderID(this.toString().split("@")[1]);
-    			newMsg.setSenderRoute(rm.getShortestPathTo(this, endPoint.get()));
+    			newMsg.setSenderRoute(pathToFollow.get());
+    			newMsg.setEucDistance(eucDistancetoTarg());
     			device.get().broadcast(newMsg);
 			}
-			
-			// make sure that 
     		
     	} 
 /*		else if (time.getStartTime() - lastReceiveTime > LONELINESS_THRESHOLD) {
 			device.get().broadcast(Messages.WHERE_IS_EVERYBODY);
 		}	*/      
 	      	
+	}
+	
+/*	public boolean myTimeIsShorter(long myTime, long hisTime){
+		boolean itIs = false;
+		if (myTime<hisTime){
+			itIs = true;
+		}
+		else if (myTime==hisTime){
+			
+		}
+		return itIs;	
+	}
+	*/
+	public double eucDistancetoTarg(){
+		final PDPModel pm = getPDPModel();
+		double eDist = 0.0;
+		if(curr.isPresent() && pm.containerContains(this, curr.get())){
+			eDist = Math.sqrt(Math.pow(curr.get().getDeliveryLocation().x-getPosition().get().x,2)+Math.pow(curr.get().getDeliveryLocation().y-getPosition().get().y,2));
+		}
+		else if(curr.isPresent() && !pm.containerContains(this, curr.get())){
+			eDist = Math.sqrt(Math.pow(curr.get().getPickupLocation().x-getPosition().get().x,2)+Math.pow(curr.get().getPickupLocation().y-getPosition().get().y,2));
+		}
+		return eDist;	
 	}
 	
 	@Override

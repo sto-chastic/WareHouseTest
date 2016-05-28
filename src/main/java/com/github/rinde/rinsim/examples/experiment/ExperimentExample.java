@@ -9,22 +9,28 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
+import javax.measure.unit.SI;
+
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import com.github.rinde.rinsim.core.SimulatorAPI;
 import com.github.rinde.rinsim.core.model.ModelBuilder;
+import com.github.rinde.rinsim.core.model.comm.CommModel;
 import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.TimeWindowPolicy.TimeWindowPolicies;
 import com.github.rinde.rinsim.core.model.pdp.VehicleDTO;
+import com.github.rinde.rinsim.core.model.road.CollisionGraphRoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModelBuilders;
+import com.github.rinde.rinsim.core.model.road.RoadModelBuilders.CollisionGraphRMB;
 import com.github.rinde.rinsim.experiment.Experiment;
 import com.github.rinde.rinsim.experiment.Experiment.SimulationResult;
 import com.github.rinde.rinsim.experiment.ExperimentResults;
 import com.github.rinde.rinsim.experiment.MASConfiguration;
 import com.github.rinde.rinsim.geom.Graph;
 import com.github.rinde.rinsim.geom.LengthData;
+import com.github.rinde.rinsim.geom.ListenableGraph;
 import com.github.rinde.rinsim.geom.MultimapGraph;
 import com.github.rinde.rinsim.geom.Point;
 import com.github.rinde.rinsim.pdptw.common.AddDepotEvent;
@@ -38,6 +44,7 @@ import com.github.rinde.rinsim.scenario.TimeOutEvent;
 import com.github.rinde.rinsim.scenario.TimedEvent;
 import com.github.rinde.rinsim.scenario.TimedEventHandler;
 import com.github.rinde.rinsim.ui.View;
+import com.github.rinde.rinsim.ui.renderers.CommRenderer;
 import com.github.rinde.rinsim.ui.renderers.GraphRoadModelRenderer;
 import com.github.rinde.rinsim.ui.renderers.PDPModelRenderer;
 import com.github.rinde.rinsim.ui.renderers.PlaneRoadModelRenderer;
@@ -61,46 +68,40 @@ import com.google.common.collect.ImmutableList;
  */
 public final class ExperimentExample {
   // some constants used in the experiment
-  private static final Point RESOLUTION = new Point(600, 500);
-  private static final double VEHICLE_SPEED_KMH = 30d;
-  private static final double MAX_VEHICLE_SPEED_KMH = 50d;
-  private static final Point MIN_POINT = new Point(0, 0);
-  private static final Point MAX_POINT = new Point(8, 4);
-  private static final Point DEPOT_LOC = new Point(5, 2);
-  private static final Point P1_PICKUP = new Point(1, 2);
-  private static final Point P1_DELIVERY = new Point(4, 2);
-  private static final Point P2_PICKUP = new Point(1, 1);
-  private static final Point P2_DELIVERY = new Point(4, 1);
-  private static final Point P3_PICKUP = new Point(1, 3);
-  private static final Point P3_DELIVERY = new Point(4, 3);
+  private static final Point RESOLUTION = new Point(300, 300);
+  private static final double VEHICLE_SPEED_KMH = 60d;
 
   private static final long M1 = 60 * 1000L;
   private static final long M4 = 4 * 60 * 1000L;
-  private static final long M5 = 5 * 60 * 1000L;
-  private static final long M7 = 7 * 60 * 1000L;
-  private static final long M10 = 10 * 60 * 1000L;
-  private static final long M12 = 12 * 60 * 1000L;
-  private static final long M13 = 13 * 60 * 1000L;
-  private static final long M18 = 18 * 60 * 1000L;
   private static final long M20 = 20 * 60 * 1000L;
-  private static final long M25 = 25 * 60 * 1000L;
   private static final long M30 = 30 * 60 * 1000L;
-  private static final long M40 = 40 * 60 * 1000L;
-  private static final long M60 = 60 * 60 * 1000L;
   
+  private static final long EXP_TIME_DURATION = 10 * 60 * 60 * 1000L;
+  /*
   static final int VERTICAL_SPACING = 16;
   static final int HORIZONTAL_SPACING = 16;
   static final int HEIGHT = 160;
   static final int WIDTH = 160;
+  */
+  static final int VERTICAL_SPACING = 16;
+  static final int HORIZONTAL_SPACING = 16;
+  static final int HEIGHT = 160;
+  static final int WIDTH = 160;
+  
   static final double SPACING = 30d;
   static final double MAX_HEIGHT = HEIGHT * SPACING;
   static final double MAX_WIDTH = WIDTH * SPACING;
   static final double MIN_VER = VERTICAL_SPACING * SPACING;
   static final double MIN_HOR = HORIZONTAL_SPACING * SPACING;
   
-  static final int VEHICLES_NUMBER = 5 ;
+  static final int VEHICLES_NUMBER = 4 ;
+  static final int PARCELS_NUMBER = 10 ;
+  static final int DEPOT_NUMBER = 3;
   
   static final long RANDOM_SEED = 53L;
+  private static final double VEHICLE_LENGTH = 2d;
+  
+  static ArrayList<Point> point_dep_list = new ArrayList<Point>(DEPOT_NUMBER);
 
   private ExperimentExample() {}
 
@@ -158,7 +159,7 @@ public final class ExperimentExample {
 
       // The number of repetitions for each simulation. Each repetition will
       // have a unique random seed that is given to the simulator.
-      .repeat(2)
+      .repeat(1)
 
       // The master random seed from which all random seeds for the
       // simulations will be drawn.
@@ -177,12 +178,18 @@ public final class ExperimentExample {
       .usePostProcessor(new ExamplePostProcessor())
       // Adds the GUI just like it is added to a Simulator object.
       .showGui(View.builder()
-    	.with(GraphRoadModelRenderer.builder())
-    	//.with(RoadUserRenderer.builder()
-    	//		.withImageAssociation(AGV.class,
-    	//				"/graphics/flat/forklift2.png"))
+    	.with(GraphRoadModelRenderer.builder().withMargin(2))
+
+    	.with(RoadUserRenderer.builder()
+    			.withImageAssociation(AgvAgent.class,	"/graphics/flat/forklift2.png"))
         .with(PDPModelRenderer.builder())
+        
+        .with(CommRenderer.builder()
+                .withReliabilityColors()
+                .withMessageCount())
+        
         .with(TimeLinePanel.builder())
+        
         .withResolution((int) RESOLUTION.x, (int) RESOLUTION.y)
         .withAutoPlay()
        // .withAutoClose()
@@ -224,12 +231,25 @@ static Scenario createScenario() {
     // In essence a scenario is just a list of events. The events must implement
     // the TimedEvent interface. You are free to construct any object as a
     // TimedEvent but keep in mind that implementations should be immutable.
-	  final Point p1_pic = new Point(1440,120);
-	  final Point p1_del = new Point(2400,126);
-	  final Point p1_loc = new Point (480,480);
 	  
-	  // Create list of Vehicles
+	  Point point_dep;
+	  
+	  for (int i = 0; i <= DEPOT_NUMBER-1; i++){
+		  double random_x = Math.random();
+		  double random_y = Math.random();
+		  final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
+		  final double ycoor = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
+		  point_dep = new Point(xcoor,ycoor);
+		  point_dep_list.add(point_dep);
+	  }
+	  
+	// Create list of Vehicles, Parcels, and Depots
+	// Dropping points of parcels are the Depot points
 	  final Iterable<AddVehicleEvent> list_of_vehicles = create_VehicleEvents(VEHICLES_NUMBER);
+	  final Iterable<AddParcelEvent> list_of_parcels = create_ParcelEvents(PARCELS_NUMBER);
+	  final Iterable<AddDepotEvent> list_of_depots = create_DepotEvents(DEPOT_NUMBER);
+	//final ListenableGraph<> gr = new ListenableGraph<>(createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING));
+	  
 	  
     return Scenario.builder()
 
@@ -244,53 +264,37 @@ static Scenario createScenario() {
       
       // Adds randomly a given number of vehicles
       .addEvents(list_of_vehicles)
+      
+      // Adds parcels 
+      .addEvents(list_of_parcels)
+      
+      // Adds deposit spots
+      .addEvents(list_of_depots)
 
       // Three add parcel events are added. They are announced at different
       // times and have different time windows.
-      .addEvent(
-        AddParcelEvent.create(Parcel.builder(p1_pic, p1_del)
-          .neededCapacity(0)
-          .orderAnnounceTime(M1)
-          .pickupTimeWindow(TimeWindow.create(M1, M20))
-          .deliveryTimeWindow(TimeWindow.create(M4, M30))
-          .buildDTO()))
-
-      .addEvent(
-        AddParcelEvent.create(Parcel.builder(P2_PICKUP, P2_DELIVERY)
-          .neededCapacity(0)
-          .orderAnnounceTime(M5)
-          .pickupTimeWindow(TimeWindow.create(M10, M25))
-          .deliveryTimeWindow(
-            TimeWindow.create(M20, M40))
-          .buildDTO()))
-
-      .addEvent(
-        AddParcelEvent.create(Parcel.builder(P3_PICKUP, P3_DELIVERY)
-          .neededCapacity(0)
-          .orderAnnounceTime(M7)
-          .pickupTimeWindow(TimeWindow.create(M12, M18))
-          .deliveryTimeWindow(
-            TimeWindow.create(M13, M60))
-          .buildDTO()))
-          
+        
 
       // Signals the end of the scenario. Note that it is possible to stop the
       // simulation before or after this event is dispatched, that depends on
       // the stop condition (see below).
-      .addEvent(TimeOutEvent.create(M60))
-      .scenarioLength(M60)
+      .addEvent(TimeOutEvent.create(EXP_TIME_DURATION))
+      .scenarioLength(EXP_TIME_DURATION)
 
       // Adds a plane road model as this is part of the problem
-      //.addModel(RoadModelBuilders.staticGraph(
-      		 //createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING)))
-      .addModel(RoadModelBuilders.staticGraph(
-     		 createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING))
-    	        )
+      .addModel(RoadModelBuilders.dynamicGraph(new ListenableGraph<>(
+    		  createGrid(WIDTH, HEIGHT, VERTICAL_SPACING, HORIZONTAL_SPACING, SPACING))
+     		 ).withCollisionAvoidance()
+    		  .withDistanceUnit(SI.METER)
+              .withVehicleLength(VEHICLE_LENGTH))
+      
+      .addModel(CommModel.builder())
+      
+      
       // Adds the pdp model
       .addModel(
         DefaultPDPModel.builder()
-          .withTimeWindowPolicy(TimeWindowPolicies.TARDY_ALLOWED))
-
+          .withTimeWindowPolicy(TimeWindowPolicies.LIBERAL))
       // The stop condition indicates when the simulator should stop the
       // simulation. Typically this is the moment when all tasks are performed.
       // Custom stop conditions can be created by implementing the StopCondition
@@ -303,29 +307,70 @@ static Scenario createScenario() {
   
   static Iterable<AddVehicleEvent> create_VehicleEvents(int integ){
 	// Create ArrayList where our Events are stored
-	ArrayList<AddVehicleEvent> myList = new ArrayList<AddVehicleEvent>();
+	ArrayList<AddVehicleEvent> myVehicleList = new ArrayList<AddVehicleEvent>();
+	
+	final double intervW = (MAX_WIDTH + 1)/integ;
+	final double intervH = (MAX_HEIGHT + 1)/integ;
 	
 	for (int i = 1; i<=integ; i++){
-		double random_x = Math.random();
-		double random_y = Math.random();
+		double rand_x = Math.random();
+		double rand_y = Math.random();
 		// make sure that the vehicles are on the grid
-		final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
-		final double ycoor = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
-				
-		myList.add(AddVehicleEvent.create(-1, VehicleDTO.builder()
+		final double xcoor = rand_x * (MAX_WIDTH + 1) - (rand_x * (MAX_WIDTH + 1))%MIN_HOR;
+		final double ycoor = intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1) - (intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1))%MIN_VER;
+		myVehicleList.add(AddVehicleEvent.create(-1, VehicleDTO.builder()
 		    	.startPosition(new Point(ycoor,xcoor))
 		        .speed(VEHICLE_SPEED_KMH)
 		        .build()));
 	}
 	
-	Iterable<AddVehicleEvent> vehicleBuilder = myList;
+	Iterable<AddVehicleEvent> vehicleBuilder = myVehicleList;
 	return vehicleBuilder;
 }
+  
+  static Iterable<AddParcelEvent> create_ParcelEvents(int integ){
+		ArrayList<AddParcelEvent> myParcelList = new ArrayList<AddParcelEvent>();
+		
+		for (int i = 0; i <= integ-1; i++){
+			double random_x = Math.random();
+			double random_y = Math.random();
+			
+			final double xcoor_pic = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
+			final double ycoor_pic = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
+			
+			final Point p_pic = new Point(xcoor_pic,ycoor_pic);	
+			
+			myParcelList.add(AddParcelEvent.create(Parcel.builder(p_pic, new Point(480,480))
+					.neededCapacity(0)
+					.orderAnnounceTime(M1)
+					.pickupTimeWindow(TimeWindow.create(M1, M20))
+					.deliveryTimeWindow(TimeWindow.create(M4, M30))
+					.buildDTO()));
+		}
+		
+		Iterable<AddParcelEvent> parcelBuilder = myParcelList;
+		return parcelBuilder;
+	}
+  
+  static Iterable<AddDepotEvent> create_DepotEvents(int integ){
+		ArrayList<AddDepotEvent> myDepotList = new ArrayList<AddDepotEvent>();
+		
+		for (int i = 0; i <= integ-1; i++){
+			
+			myDepotList.add(AddDepotEvent.create(-1, point_dep_list.get(i)));
+		}
+		
+		Iterable<AddDepotEvent> depotBuilder = myDepotList;
+		return depotBuilder;
+	}
 
 enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     INSTANCE {
       public void handleTimedEvent(AddVehicleEvent event, SimulatorAPI sim) {
-        sim.register(new AgvAgent(event.getVehicleDTO()));
+    	AgvAgent agv_agent = new AgvAgent(event.getVehicleDTO());
+        sim.register(agv_agent);
+        agv_agent.getAvgId();
+        ;
     	  // add you own vehicle to the simulator here
       }
     }
@@ -342,11 +387,11 @@ enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     	     if (i % vLines == 0) {
     	       for (int j = 1; j < height; j++) {
     	         final Point cur = new Point(i * distance, j * distance);
-    	         if (v % 2 == 0) {
+//    	         if (v % 2 == 0) {
     	           graph.addConnection(prev, cur);
-    	         } else {
+//    	         } else {
     	           graph.addConnection(cur, prev);
-    	         }
+//    	         }
     	         prev = cur;
     	       }
     	       v++;
@@ -359,11 +404,11 @@ enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     	     if (i % hLines == 0) {
     	       for (int j = 1; j < width + 1; j++) {
     	         final Point cur = new Point(j * distance, i * distance);
-    	         if (y % 2 == 0) {
+    	         //if (y % 2 == 0) {
     	           graph.addConnection(prev, cur);
-    	         } else {
+    	         //} else {
     	           graph.addConnection(cur, prev);
-    	         }
+    	         //}
     	         prev = cur;
     	       }
     	     }
@@ -371,5 +416,4 @@ enum CustomVehicleHandler implements TimedEventHandler<AddVehicleEvent> {
     	   }
     	   return graph;
     	 }
-
 }
