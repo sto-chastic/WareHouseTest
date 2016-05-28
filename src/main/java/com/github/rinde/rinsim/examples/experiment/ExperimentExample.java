@@ -68,8 +68,8 @@ import com.google.common.collect.ImmutableList;
  */
 public final class ExperimentExample {
   // some constants used in the experiment
-  private static final Point RESOLUTION = new Point(600, 500);
-  private static final double VEHICLE_SPEED_KMH = 100d;
+  private static final Point RESOLUTION = new Point(300, 300);
+  private static final double VEHICLE_SPEED_KMH = 60d;
 
   private static final long M1 = 60 * 1000L;
   private static final long M4 = 4 * 60 * 1000L;
@@ -77,18 +77,24 @@ public final class ExperimentExample {
   private static final long M30 = 30 * 60 * 1000L;
   
   private static final long EXP_TIME_DURATION = 10 * 60 * 60 * 1000L;
-  
+  /*
   static final int VERTICAL_SPACING = 16;
   static final int HORIZONTAL_SPACING = 16;
   static final int HEIGHT = 160;
   static final int WIDTH = 160;
+  */
+  static final int VERTICAL_SPACING = 16;
+  static final int HORIZONTAL_SPACING = 16;
+  static final int HEIGHT = 160;
+  static final int WIDTH = 160;
+  
   static final double SPACING = 30d;
   static final double MAX_HEIGHT = HEIGHT * SPACING;
   static final double MAX_WIDTH = WIDTH * SPACING;
   static final double MIN_VER = VERTICAL_SPACING * SPACING;
   static final double MIN_HOR = HORIZONTAL_SPACING * SPACING;
   
-  static final int VEHICLES_NUMBER = 3 ;
+  static final int VEHICLES_NUMBER = 4 ;
   static final int PARCELS_NUMBER = 10 ;
   static final int DEPOT_NUMBER = 3;
   
@@ -233,7 +239,7 @@ static Scenario createScenario() {
 		  double random_y = Math.random();
 		  final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
 		  final double ycoor = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
-		  point_dep = new Point(ycoor,xcoor);
+		  point_dep = new Point(xcoor,ycoor);
 		  point_dep_list.add(point_dep);
 	  }
 	  
@@ -312,7 +318,6 @@ static Scenario createScenario() {
 		// make sure that the vehicles are on the grid
 		final double xcoor = rand_x * (MAX_WIDTH + 1) - (rand_x * (MAX_WIDTH + 1))%MIN_HOR;
 		final double ycoor = intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1) - (intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1))%MIN_VER;
-				
 		myVehicleList.add(AddVehicleEvent.create(-1, VehicleDTO.builder()
 		    	.startPosition(new Point(ycoor,xcoor))
 		        .speed(VEHICLE_SPEED_KMH)
@@ -333,9 +338,9 @@ static Scenario createScenario() {
 			final double xcoor_pic = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
 			final double ycoor_pic = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
 			
-			final Point p_pic = new Point(ycoor_pic,xcoor_pic);	
+			final Point p_pic = new Point(xcoor_pic,ycoor_pic);	
 			
-			myParcelList.add(AddParcelEvent.create(Parcel.builder(p_pic, point_dep_list.get(i%DEPOT_NUMBER))
+			myParcelList.add(AddParcelEvent.create(Parcel.builder(p_pic, new Point(480,480))
 					.neededCapacity(0)
 					.orderAnnounceTime(M1)
 					.pickupTimeWindow(TimeWindow.create(M1, M20))
