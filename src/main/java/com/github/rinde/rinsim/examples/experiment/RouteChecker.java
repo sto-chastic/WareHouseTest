@@ -30,26 +30,36 @@ public class RouteChecker {
 		// Counters for the while loop
 		int i = 0;
 		
-		while (i < currentRoute.size() && i < checkRadious && !(checkInRange(otherAgvRoute,currentRoute.get(i)))) {
-			i++;
+		while (i < currentRoute.size() && i < checkRadious) {
+			if (checkInRange(otherAgvRoute,currentRoute.get(i)) == true){
+				break;
+			}
+			i++;			
 		}
+		
 		if (collisionDanger){
 			System.out.println(agv.getThisAgvID().toString().split("@")[1]);
 			System.out.println("Current Position");
 			System.out.println(rm.getPosition(agv));
+			//if (i == 0){
+				
+			//	i = 1;
+				
+			//}
 			System.out.println("collitionDanger Point");
-			System.out.println(currentRoute.get(i-1));
+			System.out.println(currentRoute.get(i));
 			
 			System.out.println("Previous Crossroad");
+			
 			try {
-				previousCrossRoad = getPreviousCrossRoad(currentRoute,i-1, agv.destination);
+				previousCrossRoad = getPreviousCrossRoad(currentRoute,i, agv.destination);
 			} catch (bookingException e) {
 				e.printStackTrace();
 			}
 			System.out.println(previousCrossRoad);
 			
 			try {
-				bestPoint = getBestDetour(previousCrossRoad, currentRoute.get(i-1), rm, agv.destination);
+				bestPoint = getBestDetour(previousCrossRoad, currentRoute.get(i), rm, agv.destination);
 			} catch (Exception e) {
 				System.out.println(e);
 			}
@@ -251,8 +261,13 @@ public class RouteChecker {
 		int k = 1;
 		while ( k < checkRadious && k<currentRoute.size()){
 			if (currentRoute.get(k).equals(otherAgvRoutePoint)){
+				System.out.println("AGV1");
+				System.out.println(otherAgvRoutePoint);
+				System.out.println("AGV2");
+				System.out.println(currentRoute.get(k));
 				check = true;
 				collisionDanger = true;
+				break;
 			}
 			k++;
 		}

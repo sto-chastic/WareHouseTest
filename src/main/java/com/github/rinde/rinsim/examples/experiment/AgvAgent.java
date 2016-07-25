@@ -56,7 +56,6 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 	
 	private boolean collisionDanger = false;
 	
-	private static final double SPEED = 1000d;
 	private Optional<Parcel> curr;
 	private long timeLeft = 0;
 	public static List<String> AGV_id = new LinkedList<String>();
@@ -69,16 +68,10 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 	public Optional<List<Point>> pathToFollow;
     public Optional<List<Point>> otherAgvRoute;
 	
-	// Optional checking of route for collision with another agv
-	private Optional<List<Point>> checkedRoute;
-	
-	// LinkedList that will act as queue for our followPath() method
-	private LinkedList<Point> queue_checkedRoute = new LinkedList<>();
 	
 	public AgvAgent(VehicleDTO dto){
 		super(dto);
 		curr = Optional.absent();
-		checkedRoute = Optional.absent();
 		pathToFollow = Optional.absent();
 		otherAgvRoute = Optional.absent();
 		
@@ -153,26 +146,21 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 	    if (!curr.isPresent()) {
 	      curr = Optional.fromNullable(RoadModels.findClosestObject(
 	        rm.getPosition(this), rm, Parcel.class));
+	      	
 	    }
 	      
 	    if (curr.isPresent() && !collisionDanger) {
 	        final boolean inCargo = pm.containerContains(this, curr.get());
 	        // sanity check: if it is not in our cargo AND it is also not on the
 	        // RoadModel, we cannot go to curr anymore.
-	        timeLeft = curr.get().getDeliveryTimeWindow().end();
+	        
 	        if (!inCargo && !rm.containsObject(curr.get())) {
 	          curr = Optional.absent();
 	        } 
 	        else if (inCargo) {
 		          // if it is in cargo, go to its destination
 		        destination = Optional.of(curr.get().getDeliveryLocation());
-		        
-		        	
-	    		// Just casually move to the designated location
-	      		//rm.moveTo(this, curr.get().getDeliveryLocation(), time);
-	      		// save the new destination of the agv
-	      		//endPoint = Optional.of(curr.get().getDeliveryLocation());
-		  	      		
+		        timeLeft = curr.get().getDeliveryTimeWindow().end();
 		        	
 	            if (rm.getPosition(this).equals(curr.get().getDeliveryLocation())) {
 	            // deliver when we arrive
@@ -181,25 +169,22 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
             } 
 	        else {
 
-	            //rm.moveTo(this, curr.get(), time);
-	        	// make sure that destination has no value
-	        	//destination = Optional.absent();
 	        	destination = Optional.of(curr.get().getPickupLocation());
-	        	// save the destination of the AGV until it picks the package
-	        	//endPoint = Optional.of(curr.get().getPickupLocation());
-	
+	        	timeLeft = curr.get().getPickupTimeWindow().end();
 		        if (rm.equalPosition(this, curr.get())) {
 		            // pickup package
 		        	pm.pickup(this, curr.get(), time);
 		        }
             }
 	        pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
+//    		System.out.println("Current Path Man:");
+//   		System.out.println(pathToFollow);
 	        rm.moveTo(this, destination.get(), time); 
 	    }
 	    else if(collisionDanger){
 	    	pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
-    		System.out.println("Path to follow:");
-    		System.out.println(pathToFollow);
+//    		System.out.println("Path to follow:");
+//    		System.out.println(pathToFollow);
 	    	rm.moveTo(this, destination.get(), time);
 	    	if (rm.getPosition(this).equals(destination.get())) {
 	    		pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
@@ -225,16 +210,21 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 		    	
 		    	otherAgvRoute = temp.getSenderRoute();
 		    	double tempDist = temp.getEucDistance();
+		    	long timeLeft_Received = temp.getTimeStamp();
 		    	
 		    	//System.out.println(getThisAgvID().toString().split("@")[1]);
 		    	//&& tempDist<eucDistancetoTarg()
-		    	if (otherAgvRoute.isPresent() && pathToFollow.isPresent()  && !collisionDanger) {
+		    	if (otherAgvRoute.isPresent() && pathToFollow.isPresent()  && !collisionDanger /*&& timeLeft_Received >= timeLeft*/) {
 		    		RouteChecker check = new RouteChecker(this, pathToFollow.get(), otherAgvRoute.get(), rm);
 			    	collisionDanger = check.getCollisionDanger();
+			    	
 			    	if(collisionDanger){
 			    		normalOperationDestination = destination;
 //			    		pathToFollow = Optional.of(rm.getShortestPathTo(this, destination.get()));
-			    		destination = check.getPreviousCrossRoad();
+//TODO: Not sure if using the right method here
+//TODO: Maybe the problem is they are BOTH changing destination
+			    		//destination = check.getPreviousCrossRoad();
+			    		destination = check.getBestPoint();
 					    safePositionDestination = check.getBestPoint();
 			    		System.out.println("Changed Destination:");
 			    		System.out.println(destination);
@@ -245,13 +235,14 @@ public class AgvAgent extends Vehicle implements MovingRoadUser, CommUser {
 		    
 	    }
 		else if (device.get().getUnreadCount() == 0) {
-			//Create new Mssgs instanse for sending or broadcasting
+			//Create new Mssgs instance for sending or broadcasting
 			Mssgs newMsg = new Mssgs();		
     		// device broadcasts the route that it plans to follow
 			if (destination.isPresent()) {
 				newMsg.setSenderID(this.toString().split("@")[1]);
     			newMsg.setSenderRoute(pathToFollow.get());
     			newMsg.setEucDistance(eucDistancetoTarg());
+    			newMsg.setTimeStamp(timeLeft);
     			device.get().broadcast(newMsg);
 			}
     		

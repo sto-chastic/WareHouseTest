@@ -69,7 +69,7 @@ import com.google.common.collect.ImmutableList;
 public final class ExperimentExample {
   // some constants used in the experiment
   private static final Point RESOLUTION = new Point(300, 300);
-  private static final double VEHICLE_SPEED_KMH = 60d;
+  private static final double VEHICLE_SPEED_KMH = 250d;
 
   private static final long M1 = 60 * 1000L;
   private static final long M4 = 4 * 60 * 1000L;
@@ -94,7 +94,7 @@ public final class ExperimentExample {
   static final double MIN_VER = VERTICAL_SPACING * SPACING;
   static final double MIN_HOR = HORIZONTAL_SPACING * SPACING;
   
-  static final int VEHICLES_NUMBER = 4 ;
+  static final int VEHICLES_NUMBER = 2 ;
   static final int PARCELS_NUMBER = 10 ;
   static final int DEPOT_NUMBER = 3;
   
@@ -163,7 +163,7 @@ public final class ExperimentExample {
 
       // The master random seed from which all random seeds for the
       // simulations will be drawn.
-      .withRandomSeed(0)
+      .withRandomSeed(RANDOM_SEED)
 
       // The number of threads the experiment will use, this allows to run
       // several simulations in parallel. Note that when the GUI is used the
@@ -181,7 +181,7 @@ public final class ExperimentExample {
     	.with(GraphRoadModelRenderer.builder().withMargin(2))
 
     	.with(RoadUserRenderer.builder()
-    			.withImageAssociation(AgvAgent.class,	"/graphics/flat/forklift2.png"))
+    			)//.withImageAssociation(AgvAgent.class,	"/graphics/flat/forklift2.png"))
         .with(PDPModelRenderer.builder())
         
         .with(CommRenderer.builder()
@@ -233,10 +233,10 @@ static Scenario createScenario() {
     // TimedEvent but keep in mind that implementations should be immutable.
 	  
 	  Point point_dep;
-	  
+	  Random generatorT = new Random(RANDOM_SEED+2L);
 	  for (int i = 0; i <= DEPOT_NUMBER-1; i++){
-		  double random_x = Math.random();
-		  double random_y = Math.random();
+		  double random_x = generatorT.nextDouble();//Math.random();
+		  double random_y = generatorT.nextDouble();//Math.random();
 		  final double xcoor = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
 		  final double ycoor = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
 		  point_dep = new Point(xcoor,ycoor);
@@ -311,10 +311,11 @@ static Scenario createScenario() {
 	
 	final double intervW = (MAX_WIDTH + 1)/integ;
 	final double intervH = (MAX_HEIGHT + 1)/integ;
+	Random generatorT = new Random(RANDOM_SEED-RANDOM_SEED+4L);
 	
 	for (int i = 1; i<=integ; i++){
-		double rand_x = Math.random();
-		double rand_y = Math.random();
+		double rand_x = generatorT.nextDouble();//Math.random();
+		double rand_y = generatorT.nextDouble();//Math.random();
 		// make sure that the vehicles are on the grid
 		final double xcoor = rand_x * (MAX_WIDTH + 1) - (rand_x * (MAX_WIDTH + 1))%MIN_HOR;
 		final double ycoor = intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1) - (intervH*(i) + rand_y * (intervH*i - intervH*(i) + 1))%MIN_VER;
@@ -330,10 +331,10 @@ static Scenario createScenario() {
   
   static Iterable<AddParcelEvent> create_ParcelEvents(int integ){
 		ArrayList<AddParcelEvent> myParcelList = new ArrayList<AddParcelEvent>();
-		
+		Random generatorT = new Random(RANDOM_SEED+1L);
 		for (int i = 0; i <= integ-1; i++){
-			double random_x = Math.random();
-			double random_y = Math.random();
+			double random_x = generatorT.nextDouble();//Math.random();
+			double random_y = generatorT.nextDouble();//Math.random();
 			
 			final double xcoor_pic = random_x * (MAX_WIDTH + 1) - (random_x * (MAX_WIDTH + 1))%MIN_HOR;
 			final double ycoor_pic = random_y * (MAX_HEIGHT + 1) - (random_y * (MAX_HEIGHT+ 1))%MIN_VER;
