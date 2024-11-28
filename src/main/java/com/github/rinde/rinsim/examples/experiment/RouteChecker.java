@@ -18,8 +18,7 @@ public class RouteChecker {
 	final double x_crossroadDistance = ExperimentExample.HORIZONTAL_SPACING * ExperimentExample.SPACING;
 	final double y_crossroadDistance = ExperimentExample.VERTICAL_SPACING * ExperimentExample.SPACING;
 	final double secureTime = ExperimentExample.HORIZONTAL_SPACING;
-	final int checkRadious = 6;//1 * ExperimentExample.HORIZONTAL_SPACING;	
-	//public List<Point> newRoute = new LinkedList<Point>();
+	final int checkRadious = 6;
 	public boolean collisionDanger = false;
 	public Point previousCrossRoad = null;
 	public Point bestPoint = null;	
@@ -150,10 +149,7 @@ public class RouteChecker {
 		}
 		if (!(prevRoute.size()>1)){
 			
-/*			System.out.println(prevRoute.size());
-			System.out.println(prevRoute.toString());
-			System.out.println(destination.get());
-*/			throw new bookingException("Previous route is no longer than 1:");
+			throw new bookingException("Previous route is no longer than 1:");
 		}
 
 		if (crossRoadFound == false && (prevRoute.size()>1)){
